@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/CRUD-App" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/CRUD-App/frontend" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/FullstackApp/frontend" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ProfessionalBackground" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ProfessionalBackground/frontend" vcs="Git" />
+  </component>
+</project>
