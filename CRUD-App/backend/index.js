@@ -23,7 +23,7 @@ app.get("/", (req, res) => {
 });
 
 // fetch all organisations from the database
-app.get("/organisation", (req, res) => {
+app.get("/allOrganisations", (req, res) => {
     const q = "SELECT * FROM organisation";
     db.query(q, (err, data) => {
         if (err) {
@@ -48,6 +48,23 @@ app.get("/organisation/:id", (req, res) => {
                 return res.status(404).json({ error: "Organisation not found" });
             }
             return res.json(data[0]);
+        }
+    });
+});
+
+// fetch organisation by Type
+app.get("/organisationsByType", (req, res) => {
+    const organisationType = req.query.type;
+    const q = "SELECT * FROM organisation WHERE organisationType = ?";
+    db.query(q, [organisationType], (error, data) => {
+        if (error) {
+            console.error("Database Error:", error);
+            return res.status(500).json({error: "Database could not be accessed."});
+        } else {
+            if (data.length === 0) {
+                return res.status(404).json({ error: "Organisation not found" });
+            }
+            return res.json(data);
         }
     });
 });
