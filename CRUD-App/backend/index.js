@@ -130,6 +130,36 @@ app.put("/organisation/:id", (req, res) => {
     });
 });
 
+// fetch all locations from the database
+app.get("/allLocations", (req, res) => {
+    const q = "SELECT * FROM location";
+    db.query(q, (err, data) => {
+        if (err) {
+            console.error("Database Error:", err);
+            return res.json({error: err});
+        } else {
+            return res.json(data);
+        }
+    });
+});
+
+// fetch location by ID
+app.get("/location/:id", (req, res) => {
+    const locationID = req.params.id;
+    const q = "SELECT * FROM location WHERE locationID = ?";
+    db.query(q, [locationID], (error, data) => {
+        if (error) {
+            console.error("Database Error:", error);
+            return res.status(500).json({error: "Database could not be accessed."});
+        } else {
+            if (data.length === 0) {
+                return res.status(404).json({ error: "Location not found" });
+            }
+            return res.json(data[0]);
+        }
+    });
+});
+
 // start the server
 app.listen(port, () => {
     console.log("Backend server is running on port " + port);
