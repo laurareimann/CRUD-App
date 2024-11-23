@@ -22,56 +22,88 @@ app.get("/", (req, res) => {
     res.json("This is the backend");
 });
 
+// get Organisations with Locations
+app.get("/organisationsWithLocations", async (req, res) => {
+    try {
+        const [rows] = await db.promise().query(`
+            SELECT o.*,
+                   l.locationID AS location_locationID,
+                   l.googlePlacesID,
+                   l.locationTitle,
+                   l.street,
+                   l.zip,
+                   l.city,
+                   l.country
+            FROM organisation o
+                     LEFT JOIN location l
+                               ON o.locationID = l.locationID
+        `);
+        res.json(rows);
+    } catch (error) {
+        console.error("Error fetching organisations with locations: ", error);
+        res.status(500).json({
+            error: "An error occurred while fetching the data.",
+            message: error.message,
+            stack: error.stack
+        });
+    }
+});
+
+// get all Locations
+app.get("/allLocations", async (req, res) => {
+    try {
+        const [rows] = await db.promise().query("SELECT * FROM location");
+        res.json(rows);
+    } catch (error) {
+        console.error("Database error: ", error);
+        res.status(500).json({ error: 'An error occurred while fetching locations' });
+    }
+});
+
 // fetch all organisations from the database
-app.get("/allOrganisations", (req, res) => {
-    const q = "SELECT * FROM organisation";
-    db.query(q, (err, data) => {
-        if (err) {
-            console.error("Database Error:", err);
-            return res.json({error: err});
-        } else {
-            return res.json(data);
-        }
-    });
+app.get("/allOrganisations", async (req, res) => {
+    try {
+        const [rows] = await db.promise().query("SELECT * FROM organisation");
+        res.json(rows);
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "An error occurred while fetching organisations." });
+    }
 });
 
 // fetch organisation by ID
-app.get("/organisation/:id", (req, res) => {
+app.get("/organisation/:id", async (req, res) => {
     const organisationID = req.params.id;
-    const q = "SELECT * FROM organisation WHERE organisationID = ?";
-    db.query(q, [organisationID], (error, data) => {
-        if (error) {
-            console.error("Database Error:", error);
-            return res.status(500).json({error: "Database could not be accessed."});
-        } else {
-            if (data.length === 0) {
-                return res.status(404).json({ error: "Organisation not found" });
-            }
-            return res.json(data[0]);
+    try {
+        const [rows] = await db.promise().query("SELECT * FROM organisation WHERE organisationID = ?", [organisationID]);
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "Organisation not found" });
         }
-    });
+        res.json(rows[0]);
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "Database could not be accessed." });
+    }
 });
 
 // fetch organisation by Type
-app.get("/organisationsByType", (req, res) => {
+app.get("/organisationsByType", async (req, res) => {
     const organisationType = req.query.type;
-    const q = "SELECT * FROM organisation WHERE organisationType = ?";
-    db.query(q, [organisationType], (error, data) => {
-        if (error) {
-            console.error("Database Error:", error);
-            return res.status(500).json({error: "Database could not be accessed."});
-        } else {
-            if (data.length === 0) {
-                return res.status(404).json({ error: "Organisation not found" });
-            }
-            return res.json(data);
+    try {
+        const [rows] = await db.promise().query("SELECT * FROM organisation WHERE organisationType = ?", [organisationType]);
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "Organisation not found" });
         }
-    });
+        res.json(rows);
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "Database could not be accessed." });
+    }
 });
 
 // add new organisation
-app.post("/organisation", (req, res) => {
-    const q = "INSERT INTO organisation (locationID, contactID, organisationTitle, organisationCategory, organisationWebsite, organisationLogo) VALUES (?)";
+app.post("/organisation", async (req, res) => {
+    const query = "INSERT INTO organisation (locationID, contactID, organisationTitle, organisationCategory, organisationWebsite, organisationLogo) VALUES (?)";
     const values = [
         req.body.locationID,
         req.body.contactID,
@@ -80,33 +112,32 @@ app.post("/organisation", (req, res) => {
         req.body.organisationWebsite,
         req.body.organisationLogo,
     ];
-
-    db.query(q, [values], (err, data) => {
-        if (err) {
-            return res.json({error: err});
-        } else {
-            return res.json({message: "New entry has been added", data});
-        }
-    });
+    try {
+        const [result] = await db.promise().query(query, [values]);
+        res.json({ message: "New entry has been added", data: result });
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "An error occurred while adding the organisation." });
+    }
 });
 
 // delete organisation
-app.delete("/organisation/:id", (req, res) => {
+app.delete("/organisation/:id", async (req, res) => {
     const organisationID = req.params.id;
-    const query = "DELETE FROM organisation WHERE organisationID = ?";
-    db.query(query, [organisationID], (err, data) => {
-        if (err) {
-            return res.status(500).json({error: "Database could not be accessed."});
+    try {
+        const [result] = await db.promise().query("DELETE FROM organisation WHERE organisationID = ?", [organisationID]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Organisation not found in the database." });
         }
-        if (data.affectedRows === 0) {
-            return res.status(404).json({error: "Organisation not found in the database."});
-        }
-        res.status(200).json({message: "Organisation has been deleted."});
-    });
+        res.status(200).json({ message: "Organisation has been deleted." });
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "Database could not be accessed." });
+    }
 });
 
 // edit organisation
-app.put("/organisation/:id", (req, res) => {
+app.put("/organisation/:id", async (req, res) => {
     const organisationID = req.params.id;
     const query = "UPDATE organisation SET `locationID` = ?, `contactID` = ?, `organisationTitle` = ?, `organisationCategory` = ?, `organisationWebsite` = ?, `organisationLogo` = ? WHERE organisationID = ?";
     const values = [
@@ -117,47 +148,28 @@ app.put("/organisation/:id", (req, res) => {
         req.body.organisationWebsite,
         req.body.organisationLogo,
     ];
-
-    console.log("Executing query:", query);
-    console.log("Values:", values);
-
-    db.query(query, [...values, organisationID], (err) => {
-        if (err) {
-            return res.status(500).json({error: "Database could not be accessed."});
-        } else {
-            return res.status(200).json({message: "Organisation has been edited."});
-        }
-    });
-});
-
-// fetch all locations from the database
-app.get("/allLocations", (req, res) => {
-    const q = "SELECT * FROM location";
-    db.query(q, (err, data) => {
-        if (err) {
-            console.error("Database Error:", err);
-            return res.json({error: err});
-        } else {
-            return res.json(data);
-        }
-    });
+    try {
+        const [result] = await db.promise().query(query, [...values, organisationID]);
+        res.status(200).json({ message: "Organisation has been edited." });
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "Database could not be accessed." });
+    }
 });
 
 // fetch location by ID
-app.get("/location/:id", (req, res) => {
+app.get("/location/:id", async (req, res) => {
     const locationID = req.params.id;
-    const q = "SELECT * FROM location WHERE locationID = ?";
-    db.query(q, [locationID], (error, data) => {
-        if (error) {
-            console.error("Database Error:", error);
-            return res.status(500).json({error: "Database could not be accessed."});
-        } else {
-            if (data.length === 0) {
-                return res.status(404).json({ error: "Location not found" });
-            }
-            return res.json(data[0]);
+    try {
+        const [rows] = await db.promise().query("SELECT * FROM location WHERE locationID = ?", [locationID]);
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "Location not found" });
         }
-    });
+        res.json(rows[0]);
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "Database could not be accessed." });
+    }
 });
 
 // start the server
