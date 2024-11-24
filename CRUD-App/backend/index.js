@@ -3,7 +3,6 @@ import mysql from "mysql2";
 import cors from "cors";
 
 const app = express();
-
 const port = 8800;
 
 // set up database connection
@@ -22,30 +21,39 @@ app.get("/", (req, res) => {
     res.json("This is the backend");
 });
 
+/**
+ * Helper function to get all Organisations with Locations
+ * @returns {Promise<*>}
+ */
+export const getOrganisationsWithLocations = async () => {
+    const query = `
+        SELECT o.*,
+               l.locationID AS location_locationID,
+               l.googlePlacesID,
+               l.locationTitle,
+               l.street,
+               l.zip,
+               l.city,
+               l.country
+        FROM organisation o
+                 LEFT JOIN location l
+                           ON o.locationID = l.locationID
+    `;
+    const [rows] = await db.promise().query(query);
+    return rows;
+};
+
 // get Organisations with Locations
 app.get("/organisationsWithLocations", async (req, res) => {
     try {
-        const [rows] = await db.promise().query(`
-            SELECT o.*,
-                   l.locationID AS location_locationID,
-                   l.googlePlacesID,
-                   l.locationTitle,
-                   l.street,
-                   l.zip,
-                   l.city,
-                   l.country
-            FROM organisation o
-                     LEFT JOIN location l
-                               ON o.locationID = l.locationID
-        `);
-        res.json(rows);
+        const organisations = await getOrganisationsWithLocations();
+        if (organisations.length === 0) {
+            return res.status(404).json({ error: "No Organisations found" });
+        }
+        res.json(organisations);
     } catch (error) {
-        console.error("Error fetching organisations with locations: ", error);
-        res.status(500).json({
-            error: "An error occurred while fetching the data.",
-            message: error.message,
-            stack: error.stack
-        });
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "Database could not be accessed." });
     }
 });
 
@@ -60,41 +68,34 @@ app.get("/allLocations", async (req, res) => {
     }
 });
 
-// fetch all organisations from the database
-app.get("/allOrganisations", async (req, res) => {
-    try {
-        const [rows] = await db.promise().query("SELECT * FROM organisation");
-        res.json(rows);
-    } catch (error) {
-        console.error("Database Error:", error);
-        res.status(500).json({ error: "An error occurred while fetching organisations." });
-    }
-});
-
-// fetch organisation by ID
+// fetch organisation by ID with Location
 app.get("/organisation/:id", async (req, res) => {
     const organisationID = req.params.id;
     try {
-        const [rows] = await db.promise().query("SELECT * FROM organisation WHERE organisationID = ?", [organisationID]);
-        if (rows.length === 0) {
+        const organisations = await getOrganisationsWithLocations();
+        const organisation = organisations.find(o => o.organisationID === Number(organisationID));
+        //const [rows] = await db.promise().query("SELECT * FROM organisation WHERE organisationID = ?", [organisationID]);
+        if (!organisation) {
             return res.status(404).json({ error: "Organisation not found" });
         }
-        res.json(rows[0]);
+        res.json(organisation);
     } catch (error) {
         console.error("Database Error:", error);
         res.status(500).json({ error: "Database could not be accessed." });
     }
 });
 
-// fetch organisation by Type
+// fetch organisations by Type with location
 app.get("/organisationsByType", async (req, res) => {
     const organisationType = req.query.type;
     try {
-        const [rows] = await db.promise().query("SELECT * FROM organisation WHERE organisationType = ?", [organisationType]);
-        if (rows.length === 0) {
+        const organisations = await getOrganisationsWithLocations();
+        const filteredOrganisations = organisations.filter(o => o.organisationType===organisationType);
+
+        if (filteredOrganisations.length === 0) {
             return res.status(404).json({ error: "Organisation not found" });
         }
-        res.json(rows);
+        res.json(filteredOrganisations);
     } catch (error) {
         console.error("Database Error:", error);
         res.status(500).json({ error: "Database could not be accessed." });
@@ -102,13 +103,13 @@ app.get("/organisationsByType", async (req, res) => {
 });
 
 // add new organisation
-app.post("/organisation", async (req, res) => {
-    const query = "INSERT INTO organisation (locationID, contactID, organisationTitle, organisationCategory, organisationWebsite, organisationLogo) VALUES (?)";
+app.post("/organisationAdd", async (req, res) => {
+    const query = "INSERT INTO organisation (locationID, contactID, organisationTitle, organisationType, organisationWebsite, organisationLogo) VALUES (?)";
     const values = [
         req.body.locationID,
         req.body.contactID,
         req.body.organisationTitle,
-        req.body.organisationCategory,
+        req.body.organisationType,
         req.body.organisationWebsite,
         req.body.organisationLogo,
     ];
@@ -122,7 +123,7 @@ app.post("/organisation", async (req, res) => {
 });
 
 // delete organisation
-app.delete("/organisation/:id", async (req, res) => {
+app.delete("/organisationDelete/:id", async (req, res) => {
     const organisationID = req.params.id;
     try {
         const [result] = await db.promise().query("DELETE FROM organisation WHERE organisationID = ?", [organisationID]);
@@ -137,14 +138,14 @@ app.delete("/organisation/:id", async (req, res) => {
 });
 
 // edit organisation
-app.put("/organisation/:id", async (req, res) => {
+app.put("/organisationEdit/:id", async (req, res) => {
     const organisationID = req.params.id;
-    const query = "UPDATE organisation SET `locationID` = ?, `contactID` = ?, `organisationTitle` = ?, `organisationCategory` = ?, `organisationWebsite` = ?, `organisationLogo` = ? WHERE organisationID = ?";
+    const query = "UPDATE organisation SET `locationID` = ?, `contactID` = ?, `organisationTitle` = ?, `organisationType` = ?, `organisationWebsite` = ?, `organisationLogo` = ? WHERE organisationID = ?";
     const values = [
         req.body.locationID,
         req.body.contactID,
         req.body.organisationTitle,
-        req.body.organisationCategory,
+        req.body.organisationType,
         req.body.organisationWebsite,
         req.body.organisationLogo,
     ];
