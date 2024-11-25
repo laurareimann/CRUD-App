@@ -173,6 +173,63 @@ app.get("/location/:id", async (req, res) => {
     }
 });
 
+// edit location
+app.put("/locationEdit/:id", async (req, res) => {
+    const locationID = req.params.id;
+    const query = "UPDATE location SET `googlePlacesID` = ?, `locationTitle` = ?, `street` = ?, `zip` = ?, `city` = ?, `country` = ? WHERE locationID = ?";
+    const values = [
+        req.body.googlePlacesID,
+        req.body.locationTitle,
+        req.body.street,
+        req.body.zip,
+        req.body.city,
+        req.body.country,
+    ];
+    try {
+        const [result] = await db.promise().query(query, [...values, locationID]);
+        res.status(200).json({ message: "Location has been edited." });
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "Database could not be accessed." });
+    }
+});
+
+
+// add new location
+app.post("/locationAdd", async (req, res) => {
+    const query = "INSERT INTO location (googlePlacesID, locationTitle, street, zip, city, country) VALUES (?)";
+    const values = [
+        req.body.googlePlacesID,
+        req.body.locationTitle,
+        req.body.street,
+        req.body.zip,
+        req.body.city,
+        req.body.country,
+    ];
+    try {
+        const [result] = await db.promise().query(query, [values]);
+        res.json({ message: "New entry has been added", data: result });
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "An error occurred while adding the location." });
+    }
+});
+
+// delete location
+app.delete("/locationDelete/:id", async (req, res) => {
+    const locationID = req.params.id;
+    try {
+        const [result] = await db.promise().query("DELETE FROM location WHERE locationID = ?", [locationID]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Location not found in the database." });
+        }
+        res.status(200).json({ message: "Location has been deleted." });
+    } catch (error) {
+        console.error("Database Error:", error);
+        res.status(500).json({ error: "Database could not be accessed." });
+    }
+});
+
 // start the server
 app.listen(port, () => {
     console.log("Backend server is running on port " + port);
