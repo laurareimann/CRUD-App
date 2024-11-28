@@ -1,0 +1,16 @@
+{
+  "name": "crud-app",
+  "version": "1.0.0",
+  "description": "SVG Source: https://www.svgrepo.com/collection/dazzle-line-icons/?search=pen",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "concurrently \"npm start --prefix backend\" \"npm start --prefix frontend\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
